@@ -73,5 +73,12 @@ For Rust usage examples and edge cases have a look at the linked tests for each 
     - [`in`](https://github.com/marvindv/jsonlogic_rs/blob/master/tests/string.rs#L4)
     - [`cat`](https://github.com/marvindv/jsonlogic_rs/blob/master/tests/string.rs#L18)
     - [`substr`](https://github.com/marvindv/jsonlogic_rs/blob/master/tests/string.rs#L35)
+    - [`match`](https://github.com/juspay/jsonlogic_rs/blob/master/tests/string.rs#L56)
 * Miscellaneous
     - [`log`](https://github.com/marvindv/jsonlogic_rs/blob/master/tests/misc.rs#L5)
+* Juspay Version Comparision
+    - [`jp_ver_eq`](https://github.com/juspay/jsonlogic_rs/blob/master/tests/jp_version.rs#L4)
+    - [`jp_ver_gt`](https://github.com/juspay/jsonlogic_rs/blob/master/tests/jp_version.rs#L27)
+    - [`jp_ver_ge`](https://github.com/juspay/jsonlogic_rs/blob/master/tests/jp_version.rs#L50)
+    - [`jp_ver_lt`](https://github.com/juspay/jsonlogic_rs/blob/master/tests/jp_version.rs#L73)
+    - [`jp_ver_le`](https://github.com/juspay/jsonlogic_rs/blob/master/tests/jp_version.rs#L96)

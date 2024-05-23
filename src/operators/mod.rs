@@ -12,6 +12,12 @@ mod greater_equal_than;
 mod greater_than;
 mod if_else;
 mod is_in;
+mod jp_ver_eq;
+mod jp_ver_gt;
+mod jp_ver_gteq;
+mod jp_ver_lt;
+mod jp_ver_lteq;
+mod jp_version;
 mod less_equal_than;
 mod less_than;
 mod log;
@@ -29,6 +35,7 @@ mod none;
 mod not_equal;
 mod or;
 mod reduce;
+mod regex_match;
 mod some;
 mod strict_equality;
 mod strict_not_equal;
@@ -173,6 +180,19 @@ pub enum Operator {
     /// `var` operations inside the second argument expression are relative to the array element
     /// being tested.
     None,
+    /// Expects 2 to 3 arguments, string to check, regex pattern and regex flag(s) [optional].
+    /// Returns a boolean based on if the string matched with the string.
+    RegexMatch,
+    /// Juspay Version Equal. Takes exactly 2 arguments, otherwise returns `false`.
+    JuspayVerEq,
+    /// Juspay Version Greater than. Takes exactly 2 arguments, otherwise returns `false`.
+    JuspayVerGt,
+    /// Juspay Version Greater than or equal. Takes exactly 2 arguments, otherwise returns `false`.
+    JuspayVerGtEq,
+    /// Juspay Version Lesser than. Takes 2 to 3 arguments, otherwise returns `false`.
+    JuspayVerLt,
+    /// Juspay Version Lesser than or equal. Takes 2 to 3 arguments, otherwise returns `false`.
+    JuspayVerLtEq,
 }
 
 impl Operator {
@@ -214,6 +234,12 @@ impl Operator {
             "all" => Some(Operator::All),
             "some" => Some(Operator::Some),
             "none" => Some(Operator::None),
+            "match" => Some(Operator::RegexMatch),
+            "jp_ver_eq" => Some(Operator::JuspayVerEq),
+            "jp_ver_gt" => Some(Operator::JuspayVerGt),
+            "jp_ver_ge" => Some(Operator::JuspayVerGtEq),
+            "jp_ver_lt" => Some(Operator::JuspayVerLt),
+            "jp_ver_le" => Some(Operator::JuspayVerLtEq),
             _ => None,
         }
     }
@@ -232,6 +258,11 @@ impl Operator {
             Operator::GreaterThan => greater_than::compute,
             Operator::If => if_else::compute,
             Operator::In => is_in::compute,
+            Operator::JuspayVerEq => jp_ver_eq::compute,
+            Operator::JuspayVerGt => jp_ver_gt::compute,
+            Operator::JuspayVerGtEq => jp_ver_gteq::compute,
+            Operator::JuspayVerLt => jp_ver_lt::compute,
+            Operator::JuspayVerLtEq => jp_ver_lteq::compute,
             Operator::LessEqualThan => less_equal_than::compute,
             Operator::LessThan => less_than::compute,
             Operator::Log => log::compute,
@@ -248,6 +279,7 @@ impl Operator {
             Operator::NotEqual => not_equal::compute,
             Operator::Or => or::compute,
             Operator::Reduce => reduce::compute,
+            Operator::RegexMatch => regex_match::compute,
             Operator::Some => some::compute,
             Operator::StrictEqual => strict_equality::compute,
             Operator::StrictNotEqual => strict_not_equal::compute,
@@ -304,5 +336,17 @@ mod tests {
         assert_eq!(Operator::from_str("all"), Some(Operator::All));
         assert_eq!(Operator::from_str("none"), Some(Operator::None));
         assert_eq!(Operator::from_str("some"), Some(Operator::Some));
+        assert_eq!(Operator::from_str("match"), Some(Operator::RegexMatch));
+        assert_eq!(Operator::from_str("jp_ver_eq"), Some(Operator::JuspayVerEq));
+        assert_eq!(Operator::from_str("jp_ver_gt"), Some(Operator::JuspayVerGt));
+        assert_eq!(
+            Operator::from_str("jp_ver_ge"),
+            Some(Operator::JuspayVerGtEq)
+        );
+        assert_eq!(Operator::from_str("jp_ver_lt"), Some(Operator::JuspayVerLt));
+        assert_eq!(
+            Operator::from_str("jp_ver_le"),
+            Some(Operator::JuspayVerLtEq)
+        );
     }
 }
