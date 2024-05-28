@@ -52,3 +52,28 @@ fn substr() {
         Ok(json!("log"))
     );
 }
+
+// regex match
+#[test]
+fn regex_match() {
+    assert_eq!(
+        apply(&json!({"match": ["abctest", "test"]}), &Value::Null),
+        Ok(json!(true))
+    );
+
+    assert_eq!(
+        apply(
+            &json!({"match": [{"var": "text"}, "test", "i"]}),
+            &json!({"text":"AbcTest"})
+        ),
+        Ok(json!(true))
+    );
+
+    assert_eq!(
+        apply(
+            &json!({"match": [{"var": "text"}, "test"]}),
+            &json!({"text":"AbcTest"})
+        ),
+        Ok(json!(false))
+    );
+}
