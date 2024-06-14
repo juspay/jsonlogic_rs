@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{logic, Data, Expression};
+use super::{logic, Data, Expression, PartialResult};
 
 pub fn compute(args: &[Expression], data: &Data) -> Value {
     match args.len() {
@@ -47,6 +47,60 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
                     Some(then_val) => {
                         if logic::is_truthy(&condition_or_else_val) {
                             return then_val.compute(data);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// early returns on finding any Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    match args.len() {
+        // Return the condition, for whatever reason.
+        0..=1 => args
+            .get(0)
+            .map(|arg| arg.partial_compute(data))
+            .unwrap_or(Ok(Value::Null)),
+        // Normal if/then/else, with default null.
+        2..=3 => {
+            let condition = args
+                .get(0)
+                .map(|arg| arg.partial_compute(data))
+                .unwrap_or(Ok(Value::Null))?;
+            if logic::is_truthy(&condition) {
+                args.get(1).map(|arg| arg.partial_compute(data)).unwrap()
+            } else {
+                args.get(2)
+                    .map(|arg| arg.partial_compute(data))
+                    .unwrap_or(Ok(Value::Null))
+            }
+        }
+        // Now the arguments are pairs of condition and then value. The last argument is the
+        // else value.
+        // TODO: Actually the logic of this arm computes the other cases properly. Test whether
+        // the short circuit cases have a performance benefit or not.
+        _ => {
+            let mut args = args.iter();
+
+            loop {
+                let condition_or_else_val = args
+                    .next()
+                    .map(|arg| arg.partial_compute(data))
+                    .unwrap_or(Ok(Value::Null));
+                let then_val = args.next();
+
+                match then_val {
+                    // The value behind arg1 is the last argument to the if operator, which is
+                    // the else argument. Since we come until here, no other (else-)if condition
+                    // was truthy. Therefore return the value of arg1.
+                    None => return condition_or_else_val,
+                    // If the condition (arg1) is truthy, return the then value (arg2).
+                    // Otherwise just continue with the next pair.
+                    Some(then_val) => {
+                        if logic::is_truthy(&condition_or_else_val?) {
+                            return then_val.partial_compute(data);
                         }
                     }
                 }

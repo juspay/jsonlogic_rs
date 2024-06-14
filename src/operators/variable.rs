@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{Data, Expression};
+use super::{Ambiguous, Data, Expression, PartialResult};
 
 pub fn compute(args: &[Expression], data: &Data) -> Value {
     let arg = args
@@ -22,6 +22,27 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
                 .map(|arg| arg.compute(data))
                 .unwrap_or(Value::Null)
         }),
+    }
+}
+
+// returns Ambiguous when value for var is not found
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let arg = args
+        .get(0)
+        .map(|arg| arg.partial_compute(data))
+        .unwrap_or(Ok(Value::Null))?;
+
+    match arg {
+        Value::Null => Ok(data.get_plain().clone()),
+        Value::String(s) if s == "" => Ok(data.get_plain().clone()),
+        _ => data.get_value(&arg).map_or_else(
+            || {
+                args.get(1)
+                    .map(|arg| arg.partial_compute(data))
+                    .unwrap_or(Err(Ambiguous))
+            },
+            |res| Ok(res),
+        ),
     }
 }
 

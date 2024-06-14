@@ -1,22 +1,39 @@
 use super::jp_version::compare_version;
-use super::{logic, Data, Expression};
+use super::{logic, Data, Expression, PartialResult};
 
-use serde_json::{json, Value};
+use serde_json::Value;
 
 pub fn compute(args: &[Expression], data: &Data) -> Value {
     let first = match args.get(0) {
         Some(arg) => logic::coerce_to_str(&arg.compute(data)),
-        None => return json!(false),
+        None => return Value::Bool(false),
     };
 
     let second = match args.get(1) {
         Some(arg) => logic::coerce_to_str(&arg.compute(data)),
-        None => return json!(false),
+        None => return Value::Bool(false),
     };
 
     let result = compare_version(&first, &second, true).is_ge();
 
     Value::Bool(result)
+}
+
+// early returns on finding either Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let first = match args.get(0) {
+        Some(arg) => logic::coerce_to_str(&arg.partial_compute(data)?),
+        None => return Ok(Value::Bool(false)),
+    };
+
+    let second = match args.get(1) {
+        Some(arg) => logic::coerce_to_str(&arg.partial_compute(data)?),
+        None => return Ok(Value::Bool(false)),
+    };
+
+    let result = compare_version(&first, &second, true).is_ge();
+
+    Ok(Value::Bool(result))
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 use serde_json::{Number, Value};
 
-use super::{logic, Data, Expression};
+use super::{logic, Data, Expression, PartialResult};
 
 /// "-", takes two numbers and returns the substraction of the them.
 /// If only one argument is passed, returns the negation of that argument.
@@ -14,6 +14,22 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
     match args.get(1).map(|arg| arg.compute(data)) {
         None => compute_negation(&logic::coerce_to_f64(&a)),
         Some(b) => compute_substraction(&logic::coerce_to_f64(&a), &logic::coerce_to_f64(&b)),
+    }
+}
+
+// early returns on finding any Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let a = match args.get(0).map(|arg| arg.partial_compute(data)) {
+        Some(arg) => arg?,
+        None => return Ok(Value::Null),
+    };
+
+    match args.get(1).map(|arg| arg.partial_compute(data)) {
+        None => Ok(compute_negation(&logic::coerce_to_f64(&a))),
+        Some(b) => Ok(compute_substraction(
+            &logic::coerce_to_f64(&a),
+            &logic::coerce_to_f64(&b?),
+        )),
     }
 }
 

@@ -3,6 +3,11 @@ use crate::Data;
 use serde_json::Value;
 use std::collections::HashSet;
 
+#[derive(Debug)]
+pub struct Ambiguous;
+
+pub type PartialResult = Result<Value, Ambiguous>;
+
 #[derive(Debug, PartialEq)]
 pub enum Expression<'a> {
     Constant(&'a Value),
@@ -43,6 +48,13 @@ impl<'a> Expression<'a> {
         match self {
             Expression::Constant(value) => (*value).clone(),
             Expression::Computed(operator, args) => operator.compute(args, data),
+        }
+    }
+
+    pub fn partial_compute(&self, data: &Data) -> PartialResult {
+        match self {
+            Expression::Constant(value) => Ok((*value).clone()),
+            Expression::Computed(operator, args) => operator.partial_compute(args, data),
         }
     }
 

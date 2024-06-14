@@ -1,6 +1,6 @@
 use serde_json::{Number, Value};
 
-use super::{logic, Data, Expression};
+use super::{logic, Data, Expression, PartialResult};
 
 /// Returns the largest of the given numbers. Arguments that are no numbers are coerced into
 /// numbers. If one argument cannot be coerced or there are no arguments, `Value::Null` will be
@@ -25,6 +25,29 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
     match max {
         Some(max) => Value::Number(Number::from_f64(max).unwrap()),
         None => Value::Null,
+    }
+}
+
+// early returns on finding any Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let mut max: Option<f64> = None;
+
+    for arg in args {
+        let arg = arg.partial_compute(data)?;
+        match (logic::coerce_to_f64(&arg), max) {
+            (Some(num), Some(current_max)) => {
+                if num > current_max {
+                    max = Some(num);
+                }
+            }
+            (Some(num), None) => max = Some(num),
+            (None, _) => return Ok(Value::Null),
+        }
+    }
+
+    match max {
+        Some(max) => Ok(Value::Number(Number::from_f64(max).unwrap())),
+        None => Ok(Value::Null),
     }
 }
 

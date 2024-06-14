@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{logic, Data, Expression};
+use super::{logic, Data, Expression, PartialResult};
 
 /// Takes a minimum number of data keys that are required, and an array of keys to search for
 /// (same format as `var` or `missing`). Returns an empty array if the minimum is met, or an array
@@ -36,6 +36,39 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
     }
 
     Value::Array(result.iter().map(|&el| el.clone()).collect())
+}
+
+// early returns on finding any Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let mut min_num = match args.get(0) {
+        Some(arg) => logic::coerce_to_f64(&arg.partial_compute(data)?).map(|a| a.ceil() as u64),
+        None => None,
+    }
+    .unwrap_or(0);
+
+    let keys = match args.get(1).map(|arg| arg.partial_compute(data)) {
+        Some(arg) => match arg? {
+            Value::Array(keys) => keys,
+            _ => return Ok(Value::Array(vec![])),
+        },
+        None => return Ok(Value::Array(vec![])),
+    };
+
+    let mut result: Vec<&Value> = vec![];
+
+    for arg in keys.iter() {
+        if min_num < 1 {
+            return Ok(Value::Array(vec![]));
+        }
+
+        if data.get_value(arg).is_some() {
+            min_num -= 1;
+        } else {
+            result.push(arg);
+        }
+    }
+
+    Ok(Value::Array(result.iter().map(|&el| el.clone()).collect()))
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 use serde_json::{Number, Value};
 
-use super::{logic, Data, Expression};
+use super::{logic, Data, Expression, PartialResult};
 
 /// %, finds the remainder after the first argument is divided by the second argument.
 pub fn compute(args: &[Expression], data: &Data) -> Value {
@@ -25,6 +25,34 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
     match Number::from_f64(a % b) {
         Some(num) => Value::Number(num),
         None => Value::Null,
+    }
+}
+
+// early returns on finding either Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let a = match args
+        .get(0)
+        .map(|arg| arg.partial_compute(data))
+        .transpose()?
+        .and_then(|a| logic::coerce_to_f64(&a))
+    {
+        Some(a) => a,
+        None => return Ok(Value::Null),
+    };
+
+    let b = match args
+        .get(1)
+        .map(|arg| arg.partial_compute(data))
+        .transpose()?
+        .and_then(|b| logic::coerce_to_f64(&b))
+    {
+        Some(b) => b,
+        None => return Ok(Value::Null),
+    };
+
+    match Number::from_f64(a % b) {
+        Some(num) => Ok(Value::Number(num)),
+        None => Ok(Value::Null),
     }
 }
 

@@ -1,6 +1,6 @@
 use serde_json::{Number, Value};
 
-use super::{logic, Data, Expression};
+use super::{logic, Data, Expression, PartialResult};
 
 /// *, takes an arbitrary number of arguments and multiplicates them. Returns `Value::Null` if one
 /// argument cannot be coerced into a number or if no arguments are passed.
@@ -23,6 +23,28 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
             }
 
             Value::Number(Number::from_f64(result).unwrap())
+        }
+    }
+}
+
+// early returns on finding any Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    match args {
+        [] => Ok(Value::Null),
+        [arg] => arg.partial_compute(data),
+        _ => {
+            let mut result = 1f64;
+
+            for arg in args {
+                // Use parseFloat like in the javascript implementation.
+                // parseFloat(null) is NaN, whereas coerce_to_f64 would return 0.
+                match logic::parse_float(&arg.partial_compute(data)?) {
+                    Some(num) => result *= num,
+                    None => return Ok(Value::Null),
+                }
+            }
+
+            Ok(Value::Number(Number::from_f64(result).unwrap()))
         }
     }
 }

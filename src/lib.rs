@@ -1,13 +1,20 @@
 extern crate serde_json;
 
-mod data;
-mod expression;
-mod operators;
+pub mod data;
+pub mod expression;
+pub mod operators;
 
+use expression::Ambiguous;
 use serde_json::Value;
 use std::collections::HashSet;
 
 use data::Data;
+
+#[derive(Debug, PartialEq)]
+pub enum PartialApplyOutcome {
+    Resolved(Value),
+    Ambiguous,
+}
 
 /// Applies the given JsonLogic rule to the specified data.
 /// If the rule does not use any variables, you may pass `&Value::Null` as the second argument.
@@ -34,6 +41,16 @@ pub fn apply(json_logic: &Value, data: &Value) -> Result<Value, String> {
     let ast = expression::Expression::from_json(json_logic)?;
     let data = Data::from_json(data);
     Ok(ast.compute(&data))
+}
+
+pub fn partial_apply(json_logic: &Value, data: &Value) -> Result<PartialApplyOutcome, String> {
+    let ast = expression::Expression::from_json(json_logic)?;
+    let data = Data::from_json(data);
+    let result = match ast.partial_compute(&data) {
+        Ok(value) => PartialApplyOutcome::Resolved(value),
+        Err(Ambiguous) => PartialApplyOutcome::Ambiguous,
+    };
+    Ok(result)
 }
 
 // TODO: Add to public api when ready.

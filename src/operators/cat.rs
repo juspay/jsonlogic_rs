@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{logic, Data, Expression};
+use super::{logic, Data, Expression, PartialResult};
 
 pub fn compute(args: &[Expression], data: &Data) -> Value {
     let mut result = String::new();
@@ -11,6 +11,18 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
     }
 
     Value::String(result)
+}
+
+// early returns on finding any Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let mut result = String::new();
+
+    for arg in args {
+        let val = arg.partial_compute(data)?;
+        result.push_str(&logic::coerce_to_str(&val));
+    }
+
+    Ok(Value::String(result))
 }
 
 #[cfg(test)]
