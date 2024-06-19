@@ -45,7 +45,7 @@ mod variable;
 
 use serde_json::Value;
 
-use super::expression::Expression;
+use super::expression::{Ambiguous, Expression, PartialResult};
 use super::Data;
 
 /// Represents a JsonLogic operator.
@@ -289,6 +289,53 @@ impl Operator {
         };
 
         compute_fn(args, data)
+    }
+
+    pub fn partial_compute(self, args: &[Expression], data: &Data) -> PartialResult {
+        let partial_compute_fn = match self {
+            Operator::Addition => addition::partial_compute,
+            Operator::All => all::partial_compute,
+            Operator::And => and::partial_compute,
+            Operator::Cat => cat::partial_compute,
+            Operator::Division => division::partial_compute,
+            Operator::DoubleNegation => double_negation::partial_compute,
+            Operator::Equal => equality::partial_compute,
+            Operator::Filter => filter::partial_compute,
+            Operator::GreaterEqualThan => greater_equal_than::partial_compute,
+            Operator::GreaterThan => greater_than::partial_compute,
+            Operator::If => if_else::partial_compute,
+            Operator::In => is_in::partial_compute,
+            Operator::JuspayVerEq => jp_ver_eq::partial_compute,
+            Operator::JuspayVerGt => jp_ver_gt::partial_compute,
+            Operator::JuspayVerGtEq => jp_ver_gteq::partial_compute,
+            Operator::JuspayVerLt => jp_ver_lt::partial_compute,
+            Operator::JuspayVerLtEq => jp_ver_lteq::partial_compute,
+            Operator::LessEqualThan => less_equal_than::partial_compute,
+            Operator::LessThan => less_than::partial_compute,
+            Operator::Log => log::partial_compute,
+            Operator::Max => max::partial_compute,
+            Operator::Merge => merge::partial_compute,
+            Operator::Min => min::partial_compute,
+            Operator::MissingSome => missing_some::partial_compute,
+            Operator::Missing => missing::partial_compute,
+            Operator::Map => map::partial_compute,
+            Operator::Modulo => modulo::partial_compute,
+            Operator::Multiplication => multiplication::partial_compute,
+            Operator::Negation => negation::partial_compute,
+            Operator::None => none::partial_compute,
+            Operator::NotEqual => not_equal::partial_compute,
+            Operator::Or => or::partial_compute,
+            Operator::Reduce => reduce::partial_compute,
+            Operator::RegexMatch => regex_match::partial_compute,
+            Operator::Some => some::partial_compute,
+            Operator::StrictEqual => strict_equality::partial_compute,
+            Operator::StrictNotEqual => strict_not_equal::partial_compute,
+            Operator::Substr => substr::partial_compute,
+            Operator::Subtraction => subtraction::partial_compute,
+            Operator::Variable => variable::partial_compute,
+        };
+
+        partial_compute_fn(args, data)
     }
 }
 

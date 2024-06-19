@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{logic, Data, Expression};
+use super::{logic, Data, Expression, PartialResult};
 
 /// Gets a portion of a string. Takes two to three arguments.
 ///
@@ -54,6 +54,53 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
     };
 
     Value::String(s)
+}
+
+// early returns on finding any Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let a = match args.get(0).map(|arg| arg.partial_compute(data)) {
+        Some(val) => logic::coerce_to_str(&val?),
+        // Replicates specifics of the javascript implementation.
+        None => String::from("undefined"),
+    };
+    let b = args
+        .get(1)
+        .map(|arg| arg.partial_compute(data))
+        .transpose()?
+        .and_then(|val| logic::coerce_to_f64(&val))
+        .map(|f| f as i64)
+        .unwrap_or(0);
+    let c = args
+        .get(2)
+        .map(|arg| arg.partial_compute(data))
+        .transpose()?
+        .and_then(|val| logic::coerce_to_f64(&val))
+        .map(|f| f as i64);
+
+    let len = a.len() as i64;
+    let start = if b >= 0 {
+        b
+    } else {
+        // Avoid a negative start index.
+        std::cmp::max(len + b, 0)
+    };
+    let iter = a.chars().skip(start as usize);
+    let s = match c {
+        Some(c) => {
+            let limit = if c >= 0 {
+                c
+            } else {
+                // Avoid a negative limit. We must stop at c bytes before the end.
+                let len_after_start = len - start;
+                std::cmp::max(len_after_start - c.abs(), 0)
+            };
+
+            iter.take(limit as usize).collect()
+        }
+        None => iter.collect(),
+    };
+
+    Ok(Value::String(s))
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-use super::{Data, Expression};
+use super::{Data, Expression, PartialResult};
 
 /// You can use `reduce` to combine all the elements in an array into a single value, like adding
 /// up a list of numbers. Note, that inside the logic being used to reduce, var operations only
@@ -35,4 +35,34 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
     }
 
     accumulator
+}
+
+// early returns on finding any Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let initial = match args.get(2) {
+        Some(expr) => expr.partial_compute(data)?,
+        None => Value::Null,
+    };
+    let arr = match args
+        .get(0)
+        .map(|arg| arg.partial_compute(data))
+        .transpose()?
+    {
+        Some(Value::Array(arr)) => arr,
+        _ => return Ok(initial),
+    };
+    let reducer = match args.get(1) {
+        Some(expr) => expr,
+        None => &Expression::Constant(&Value::Null),
+    };
+
+    let mut accumulator = initial;
+    for current in arr.iter() {
+        let reduced_value = reducer.partial_compute(&Data::from_json(
+            &json!({ "current": current, "accumulator": accumulator }),
+        ))?;
+        accumulator = reduced_value;
+    }
+
+    Ok(accumulator)
 }

@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{Data, Expression};
+use super::{Data, Expression, PartialResult};
 
 /// You can use `map` to perform an action on every member of an array. Note, that inside the
 /// logic being used to map, var operations are relative to the array element being worked on.
@@ -21,6 +21,30 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
     }
 
     Value::Array(result)
+}
+
+// early returns on finding any Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let arr = match args
+        .get(0)
+        .map(|arg| arg.partial_compute(data))
+        .transpose()?
+    {
+        Some(Value::Array(arr)) => arr,
+        _ => Vec::with_capacity(0),
+    };
+    let op = match args.get(1) {
+        Some(expr) => expr,
+        None => &Expression::Constant(&Value::Null),
+    };
+
+    let mut result = Vec::with_capacity(arr.len());
+    for elem in arr.iter() {
+        let mapped_value = op.partial_compute(&Data::from_json(elem))?;
+        result.push(mapped_value);
+    }
+
+    Ok(Value::Array(result))
 }
 
 #[cfg(test)]

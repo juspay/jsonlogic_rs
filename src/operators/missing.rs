@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{Data, Expression};
+use super::{Data, Expression, PartialResult};
 
 /// Takes an array of data keys. Returns an array of any keys missing from the data object.
 ///
@@ -37,6 +37,43 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
     }
 
     Value::Array(result)
+}
+
+// early returns on finding any Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let mut result: Vec<Value> = vec![];
+    let mut args = args
+        .into_iter()
+        .map(|arg| arg.partial_compute(data))
+        .collect::<Result<Vec<Value>, _>>()?
+        .into_iter();
+
+    // The list of keys to look up is either the first argument if that is an array or the list
+    // of all arguments otherwise.
+    let first = args.next();
+    let keys = match first {
+        // The first argument is an array, so use its values as keys.
+        Some(Value::Array(arr)) => arr,
+        // The first argument is something else, so interpret the arguments as keys.
+        Some(first) => {
+            let mut keys = Vec::with_capacity(args.len());
+            keys.push(first);
+            keys.append(&mut args.collect());
+            keys
+        }
+        // No argument, return an empty array.
+        _ => return Ok(Value::Array(result)),
+    };
+
+    for key in keys.iter() {
+        // TODO: Even tough we only look for the existence, the value to the key will be cloned.
+        // Something like Data::has_value without cloning would help.
+        if data.get_value(key).is_none() {
+            result.push(key.clone());
+        }
+    }
+
+    Ok(Value::Array(result))
 }
 
 #[cfg(test)]

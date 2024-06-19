@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-use super::{logic, Data, Expression};
+use super::{logic, Data, Expression, PartialResult};
 
 /// Expects two arguments. Tests either for substring or whether an array contains an element.
 ///
@@ -22,6 +22,28 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
         _ => false,
     };
     Value::Bool(result)
+}
+
+// early returns on finding either Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let a = match args.get(0) {
+        Some(arg) => arg.partial_compute(data)?,
+        None => return Ok(Value::Bool(false)),
+    };
+
+    let result = match args
+        .get(1)
+        .map(|arg| arg.partial_compute(data))
+        .transpose()?
+    {
+        // Second argument is an array: test whether the first argument is a member of the array.
+        Some(Value::String(b)) => b.contains(&logic::coerce_to_str(&a)),
+        // Second argument is a string: test whether the first argument (coerced into a string) is
+        // a substring of the second argument.
+        Some(Value::Array(b)) => b.iter().any(|el| logic::is_strict_equal(el, &a)),
+        _ => false,
+    };
+    Ok(Value::Bool(result))
 }
 
 #[cfg(test)]

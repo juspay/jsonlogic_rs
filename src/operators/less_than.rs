@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{logic, Data, Expression};
+use super::{logic, Ambiguous, Data, Expression, PartialResult};
 
 pub fn compute(args: &[Expression], data: &Data) -> Value {
     let a = match args.get(0) {
@@ -19,6 +19,39 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
     };
 
     Value::Bool(result)
+}
+
+// early returns false on obvious false conditions and returns Ambiguous on other Ambiguous cases
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let a = match args.get(0) {
+        Some(arg) => arg.partial_compute(data),
+        None => return Ok(Value::Bool(false)),
+    };
+
+    let b = match args.get(1) {
+        Some(arg) => arg.partial_compute(data),
+        None => return Ok(Value::Bool(false)),
+    };
+
+    let result = match args.get(2) {
+        None => compute_less_than(&a?, &b?),
+        Some(third_arg) => {
+            let c = third_arg.partial_compute(data);
+            match (a, b, c) {
+                (Ok(a), Ok(b), Ok(c)) => compute_between_exclusive(&a, &b, &c),
+                (Ok(arg1), Err(Ambiguous), Ok(arg2))
+                | (Err(Ambiguous), Ok(arg1), Ok(arg2))
+                | (Ok(arg1), Ok(arg2), Err(Ambiguous))
+                    if !compute_less_than(&arg1, &arg2) =>
+                {
+                    return Ok(Value::Bool(false))
+                }
+                _ => return Err(Ambiguous),
+            }
+        }
+    };
+
+    Ok(Value::Bool(result))
 }
 
 fn compute_less_than(a: &Value, b: &Value) -> bool {

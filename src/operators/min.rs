@@ -1,6 +1,6 @@
 use serde_json::{Number, Value};
 
-use super::{logic, Data, Expression};
+use super::{logic, Data, Expression, PartialResult};
 
 /// Returns the smallest of the given numbers. Arguments that are no numbers are coerced into
 /// numbers. If one argument cannot be coerced or there are not arguments, `Value::Null` will be
@@ -25,6 +25,29 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
     match min {
         Some(min) => Value::Number(Number::from_f64(min).unwrap()),
         None => Value::Null,
+    }
+}
+
+// early returns on finding any Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let mut min: Option<f64> = None;
+
+    for arg in args {
+        let arg = arg.partial_compute(data)?;
+        match (logic::coerce_to_f64(&arg), min) {
+            (Some(num), Some(current_min)) => {
+                if num < current_min {
+                    min = Some(num);
+                }
+            }
+            (Some(num), None) => min = Some(num),
+            (None, _) => return Ok(Value::Null),
+        }
+    }
+
+    match min {
+        Some(min) => Ok(Value::Number(Number::from_f64(min).unwrap())),
+        None => Ok(Value::Null),
     }
 }
 

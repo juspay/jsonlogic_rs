@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use super::{Data, Expression};
+use super::{Data, Expression, PartialResult};
 
 pub fn compute(args: &[Expression], data: &Data) -> Value {
     let mut result: Vec<Value> = vec![];
@@ -14,6 +14,21 @@ pub fn compute(args: &[Expression], data: &Data) -> Value {
     }
 
     Value::Array(result)
+}
+
+// early returns on finding any Ambiguous arg
+pub fn partial_compute(args: &[Expression], data: &Data) -> PartialResult {
+    let mut result: Vec<Value> = vec![];
+
+    for arg in args {
+        let arg = arg.partial_compute(data)?;
+        match arg {
+            Value::Array(arr) => result.extend(arr.iter().cloned()),
+            _ => result.push(arg),
+        };
+    }
+
+    Ok(Value::Array(result))
 }
 
 #[cfg(test)]
