@@ -3,6 +3,7 @@ extern crate serde_json;
 pub mod data;
 pub mod expression;
 pub mod operators;
+pub mod validation;
 
 use expression::Ambiguous;
 use serde_json::Value;
