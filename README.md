@@ -82,3 +82,40 @@ For Rust usage examples and edge cases have a look at the linked tests for each 
     - [`jp_ver_ge`](https://github.com/juspay/jsonlogic_rs/blob/master/tests/jp_version.rs#L50)
     - [`jp_ver_lt`](https://github.com/juspay/jsonlogic_rs/blob/master/tests/jp_version.rs#L73)
     - [`jp_ver_le`](https://github.com/juspay/jsonlogic_rs/blob/master/tests/jp_version.rs#L96)
+
+## Validation
+
+The library now includes a validation module to ensure JSON Logic rules conform to your requirements:
+
+```rust
+use jsonlogic::validation::{ValidationConfig, validate, allowed_operators, variable_set, RequireAndWrapper};
+use serde_json::json;
+
+// Create a validation configuration
+let config = ValidationConfig {
+    require_and_wrapper: Some(RequireAndWrapper { allow_empty: true }),
+};
+
+// Validate a rule
+let rule = json!({
+    "and": [
+        {"==": [{"var": "age"}, 18]},
+        {"==": [{"var": "name"}, Joe]},
+    ]
+});
+
+match validate(&rule, &config) {
+    Ok(_) => println!("Rule is valid!"),
+    Err(err) => println!("Validation failed: {} at {}", err.message, err.path),
+}
+```
+
+The validation module lets you:
+- Require rules to be wrapped in an 'and' block (with option to allow empty rules)
+
+Future versions will include more validation options, such as:
+- Restrict which operators can be used
+- Limit the depth of the rule's expression tree
+- Control which variables can be accessed
+- Ensure required variables are present
+- Apply custom validation logic
