@@ -101,6 +101,83 @@ impl<'a> Expression<'a> {
             }
         }
     }
+
+    /// Returns a set that contains all variable names and values that occur in this expression and its child
+    /// expressions. Errors if a variable operator
+    ///
+    /// - has not a string as its argument (TODO: numbers are ok for when data is an array)
+    /// - has a non static argument
+    ///
+    pub fn get_variable_names_and_values(
+        &self,
+    ) -> Result<HashSet<(String, String, Value)>, String> {
+        let mut variable_names: HashSet<(String, String, Value)> = HashSet::new();
+
+        self.insert_var_names_and_values(&mut variable_names)?;
+        Ok(variable_names)
+    }
+
+    fn insert_var_names_and_values(
+        &self,
+        variable_names: &mut HashSet<(String, String, Value)>,
+    ) -> Result<Value, String> {
+        match self {
+            Expression::Constant(a) => Ok((**a).clone()),
+            Expression::Computed(operator, args) => {
+                match operator {
+                    Operator::Equal
+                    | Operator::StrictEqual
+                    | Operator::Negation
+                    | Operator::DoubleNegation
+                    | Operator::In
+                    | Operator::NotEqual
+                    | Operator::LessEqualThan
+                    | Operator::LessThan
+                    | Operator::GreaterEqualThan
+                    | Operator::GreaterThan
+                    | Operator::JuspayVerEq
+                    | Operator::JuspayVerGt
+                    | Operator::JuspayVerLt
+                    | Operator::JuspayVerGtEq
+                    | Operator::JuspayVerLtEq => {
+                        let op = format!("{:?}", operator);
+                        let present_value = args
+                            .last()
+                            .ok_or("Found variable operator without value")?
+                            .insert_var_names_and_values(variable_names)?;
+                        if let Expression::Computed(Operator::Variable, next_arg) =
+                            args.get(0).ok_or("Equality operator without arguments")?
+                        {
+                            let first_expr = next_arg
+                                .get(0)
+                                .ok_or("found Variable operator without arguments")?;
+                            match first_expr {
+                                Expression::Constant(name) => variable_names.insert((
+                                    name.as_str()
+                                        .ok_or("found Variable operator with non string argument")?
+                                        .to_owned(),
+                                    op,
+                                    present_value.clone(),
+                                )),
+                                _ => {
+                                    return Err(String::from(
+                                        "found Variable operator with non static argument",
+                                    ))
+                                }
+                            };
+                        }
+                        Ok(present_value)
+                    }
+                    _ => {
+                        // For all other operations analyze the arguments recursive.
+                        args.iter()
+                            .map(|expr| expr.insert_var_names_and_values(variable_names))
+                            .collect()
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -257,6 +334,162 @@ mod tests {
                 .iter()
                 .cloned()
                 .collect::<HashSet<_>>())
+        );
+    }
+
+    #[test]
+    fn get_variable_names_and_values_error() {
+        assert_eq!(
+            Expression::Computed(
+                Operator::Equal,
+                vec![
+                    Expression::Computed(
+                        Operator::Variable,
+                        vec![Expression::Computed(
+                            Operator::Variable,
+                            vec![Expression::Constant(&json!("foo"))]
+                        )]
+                    ),
+                    Expression::Constant(&json!("bar"))
+                ]
+            )
+            .get_variable_names_and_values(),
+            Err(String::from(
+                "found Variable operator with non static argument"
+            ))
+        );
+
+        assert_eq!(
+            Expression::Computed(
+                Operator::Equal,
+                vec![
+                    Expression::Computed(Operator::Variable, vec![Expression::Constant(&json!(1))]),
+                    Expression::Constant(&json!("bar"))
+                ]
+            )
+            .get_variable_names_and_values(),
+            Err(String::from(
+                "found Variable operator with non string argument"
+            ))
+        );
+
+        assert_eq!(
+            Expression::Computed(
+                Operator::Equal,
+                vec![
+                    Expression::Computed(Operator::Variable, vec![]),
+                    Expression::Constant(&json!("bar"))
+                ]
+            )
+            .get_variable_names_and_values(),
+            Err(String::from("found Variable operator without arguments"))
+        );
+    }
+
+    #[test]
+    fn get_variable_names_and_values() {
+        assert_eq!(
+            Expression::Constant(&json!("foo")).get_variable_names_and_values(),
+            Ok(HashSet::new())
+        );
+
+        assert_eq!(
+            Expression::Computed(
+                Operator::Variable,
+                vec![Expression::Constant(&json!("foo"))]
+            )
+            .get_variable_names(),
+            Ok(["foo".to_owned()].iter().cloned().collect::<HashSet<_>>())
+        );
+
+        assert_eq!(
+            Expression::Computed(
+                Operator::And,
+                vec![Expression::Computed(
+                    Operator::Equal,
+                    vec![
+                        Expression::Computed(
+                            Operator::Variable,
+                            vec![Expression::Constant(&json!("foo"))]
+                        ),
+                        Expression::Constant(&json!(2))
+                    ]
+                )]
+            )
+            .get_variable_names_and_values(),
+            Ok([("foo".to_owned(), "Equal".to_owned(), json!(2))]
+                .iter()
+                .cloned()
+                .collect::<HashSet<_>>())
+        );
+
+        assert_eq!(
+            Expression::Computed(
+                Operator::And,
+                vec![
+                    Expression::Computed(
+                        Operator::Equal,
+                        vec![
+                            Expression::Computed(
+                                Operator::Variable,
+                                vec![Expression::Constant(&json!("foo"))]
+                            ),
+                            Expression::Constant(&json!(2))
+                        ]
+                    ),
+                    Expression::Computed(
+                        Operator::Equal,
+                        vec![
+                            Expression::Computed(
+                                Operator::Variable,
+                                vec![Expression::Constant(&json!("foo"))]
+                            ),
+                            Expression::Constant(&json!(2))
+                        ]
+                    )
+                ]
+            )
+            .get_variable_names_and_values(),
+            Ok([("foo".to_owned(), "Equal".to_owned(), json!(2))]
+                .iter()
+                .cloned()
+                .collect::<HashSet<_>>())
+        );
+
+        assert_eq!(
+            Expression::Computed(
+                Operator::And,
+                vec![
+                    Expression::Computed(
+                        Operator::Equal,
+                        vec![
+                            Expression::Computed(
+                                Operator::Variable,
+                                vec![Expression::Constant(&json!("foo"))]
+                            ),
+                            Expression::Constant(&json!(2))
+                        ]
+                    ),
+                    Expression::Computed(
+                        Operator::Equal,
+                        vec![
+                            Expression::Computed(
+                                Operator::Variable,
+                                vec![Expression::Constant(&json!("bar"))]
+                            ),
+                            Expression::Constant(&json!(5))
+                        ]
+                    )
+                ]
+            )
+            .get_variable_names_and_values(),
+            Ok([
+                ("foo".to_owned(), "Equal".to_owned(), json!(2)),
+                ("bar".to_owned(), "Equal".to_owned(), json!(5))
+            ]
+            .iter()
+            .cloned()
+            .collect::<HashSet<_>>())
         );
     }
 
