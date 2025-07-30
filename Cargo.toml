@@ -1,5 +1,5 @@
 [package]
-name = "jsonlogic"
+name = "juspay_jsonlogic"
 version = "0.5.5"
 authors = ["Marvin Davieds <marvin.davieds@gmail.com>"]
 edition = "2018"
